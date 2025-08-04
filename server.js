@@ -39,7 +39,11 @@ app.set("io", io);
 // Enable CORS for all requests
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://localhost:3001"],
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://freelance-heroku.vercel.app",
+    ],
     credentials: true,
   })
 );
