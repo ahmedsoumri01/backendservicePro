@@ -99,7 +99,7 @@ exports.sendMessage = async (req, res) => {
 
   try {
     const { conversationId } = req.params;
-    const { content } = req.body;
+    const { content, fileUrl, fileType } = req.body;
 
     // Ensure user has a valid ID
     if (!req.user || !req.user._id) {
@@ -119,18 +119,25 @@ exports.sendMessage = async (req, res) => {
     );
 
     if (!participantIds.includes(userIdStr)) {
+      return res.status(403).json({
+        message: "Not authorized to send messages in this conversation",
+      });
+    }
+
+    // At least one of content or fileUrl must be present
+    if (!content && !fileUrl) {
       return res
-        .status(403)
-        .json({
-          message: "Not authorized to send messages in this conversation",
-        });
+        .status(400)
+        .json({ message: "Message content or file is required" });
     }
 
     // Create new message
     const message = new Message({
       conversation: conversationId,
       sender: req.user._id,
-      content,
+      content: content || null,
+      fileUrl: fileUrl || null,
+      fileType: fileType || null,
       readBy: [req.user._id], // Mark as read by sender
     });
 
@@ -160,11 +167,12 @@ exports.sendMessage = async (req, res) => {
           profileImage: req.user.profileImage,
         },
         content: message.content,
+        fileUrl: message.fileUrl,
+        fileType: message.fileType,
         readBy: message.readBy,
         createdAt: message.createdAt,
         updatedAt: message.updatedAt,
       });
-
       // Also notify each participant individually for notifications
       participantIds.forEach((participantId) => {
         if (participantId !== userIdStr) {

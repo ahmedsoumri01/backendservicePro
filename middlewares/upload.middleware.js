@@ -30,7 +30,70 @@ const profileStorage = multer.diskStorage({
     cb(null, "profile-" + uniqueSuffix + path.extname(file.originalname));
   },
 });
+// Storage for chat files (images, pdfs)
+const chatFileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+      cb(null, "./uploads/chat/images");
+    } else if (file.mimetype === "application/pdf") {
+      cb(null, "./uploads/chat/pdfs");
+    } else {
+      cb(null, "./uploads/chat/others");
+    }
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "chat-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
 
+// File filter for chat files (images, pdfs only)
+const chatFileFilter = (req, file, cb) => {
+  if (
+    file.mimetype.startsWith("image/") ||
+    file.mimetype === "application/pdf"
+  ) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only image and PDF files are allowed for chat!"), false);
+  }
+};
+
+const chatFileUpload = multer({
+  storage: chatFileStorage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max
+  },
+  fileFilter: chatFileFilter,
+});
+
+// Middleware for chat file upload (single file)
+exports.uploadChatFile = (req, res, next) => {
+  const upload = chatFileUpload.single("file");
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`,
+      });
+    } else if (err) {
+      return res.status(500).json({
+        success: false,
+        message: `Error: ${err.message}`,
+      });
+    }
+    // If file was uploaded, add the path and type to the request
+    if (req.file) {
+      let fileType = null;
+      if (req.file.mimetype.startsWith("image/")) fileType = "image";
+      else if (req.file.mimetype === "application/pdf") fileType = "pdf";
+      else fileType = "other";
+      req.body.fileUrl = req.file.path.replace(/\\/g, "/").replace(/^\./, "");
+      req.body.fileType = fileType;
+    }
+    next();
+  });
+};
 // Configure storage for service media (images and videos)
 const serviceStorage = multer.diskStorage({
   destination: (req, file, cb) => {

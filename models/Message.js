@@ -14,8 +14,19 @@ const MessageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: true,
+      required: function () {
+        return !this.fileUrl;
+      }, // content required if no file
       trim: true,
+    },
+    fileUrl: {
+      type: String,
+      default: null,
+    },
+    fileType: {
+      type: String, // e.g. 'image', 'pdf', 'other'
+      enum: [null, "image", "pdf", "other"],
+      default: null,
     },
     readBy: [
       {
