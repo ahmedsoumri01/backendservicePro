@@ -528,14 +528,24 @@ exports.changeReservationStatus = async (req, res) => {
     // If status is changed TO 'finished', create revenue automatically
     if (status === "finished") {
       try {
-        // Check if revenue already exists for this reservation (extra safety)
-        const existingRevenue = await Revenue.findOne({
+        // Get all advances for this reservation
+        const advances = await Revenue.findOne({
           reservation: reservationId,
+          status: "advance",
         });
-        if (existingRevenue) {
+        let totalAdvances = 0;
+        if (advances) {
+          totalAdvances = advances.amount || 0;
+        }
+        // Check if a final/full payment revenue already exists
+        const existingFinalRevenue = await Revenue.findOne({
+          reservation: reservationId,
+          status: { $in: ["final", "completed"] },
+        });
+        if (existingFinalRevenue) {
           // Log warning but don't fail the status update
           console.warn(
-            `Revenue already exists for reservation ${reservationId}`
+            `Final revenue already exists for reservation ${reservationId}`
           );
         } else {
           // Get worker and client user documents for full details
@@ -544,43 +554,48 @@ exports.changeReservationStatus = async (req, res) => {
             ? await User.findById(reservation.client)
             : null;
 
-          // Prepare revenue data based on reservation and user data
-          const revenueData = {
-            worker: reservation.worker._id,
-            client: reservation.client || null, // Handle if client wasn't linked initially
-            workerName: workerUser
-              ? `${workerUser.firstName} ${workerUser.lastName}`
-              : reservation.workerName || "Unknown Worker", // Fallback to stored name if user not found
-            workerPhone: workerUser?.phone || "", // Fallback if phone not on user
-            clientName: reservation.clientName,
-            clientPhone: reservation.clientPhone,
-            clientAddress: clientUser?.adress || "", // Assuming 'adress' typo in User schema
-            task: reservation.taskDescription,
-            billingType: reservation.billingType,
-            totalPrice: reservation.totalPrice,
-            reservation: reservation._id,
-            completedAt: new Date(), // Set completion time
-          };
-
-          // Add billing-specific fields
-          if (reservation.billingType === "hourly") {
-            revenueData.hours = reservation.hours;
-            revenueData.hourlyRate = reservation.hourlyRate;
-          } else if (reservation.billingType === "fixed") {
-            revenueData.fixedPrice = reservation.fixedPrice;
+          // Calculate the remaining amount to be paid
+          const remainingAmount = reservation.totalPrice - totalAdvances;
+          if (remainingAmount > 0) {
+            // Prepare revenue data for the remaining payment
+            const revenueData = {
+              worker: reservation.worker._id,
+              client: reservation.client || null,
+              reservation: reservation._id,
+              amount: remainingAmount,
+              status: totalAdvances > 0 ? "final" : "completed",
+              paymentDate: new Date(),
+              description:
+                totalAdvances > 0
+                  ? `Final payment for reservation ${reservation._id}`
+                  : `Full payment for reservation ${reservation._id}`,
+              // SNAPSHOT FIELDS
+              clientName: reservation.clientName,
+              clientPhone: reservation.clientPhone,
+              title: reservation.title,
+              taskDescription: reservation.taskDescription,
+              billingType: reservation.billingType,
+              hours: reservation.hours,
+              hourlyRate: reservation.hourlyRate,
+              fixedPrice: reservation.fixedPrice,
+              totalPrice: reservation.totalPrice,
+              reservationStatus: reservation.status,
+              scheduledDate: reservation.scheduledDate,
+              scheduledTime: reservation.scheduledTime,
+              completedAt: new Date(),
+            };
+            // Create the revenue document
+            const newRevenue = new Revenue(revenueData);
+            const savedRevenue = await newRevenue.save();
+            console.log(
+              `Revenue created automatically for finished reservation ${reservationId}: ${savedRevenue._id}`
+            );
+          } else {
+            // No remaining amount to pay, do not create a new revenue
+            console.log(
+              `No remaining amount to record for reservation ${reservationId}`
+            );
           }
-
-          // Create the revenue document
-          const newRevenue = new Revenue(revenueData);
-          const savedRevenue = await newRevenue.save();
-
-          // Optionally push revenue ID to worker's revenue array
-          // await Worker.findByIdAndUpdate(workerId, { $push: { revenue: savedRevenue._id } });
-
-          console.log(
-            `Revenue created automatically for finished reservation ${reservationId}: ${savedRevenue._id}`
-          );
-          // You might want to emit an event or send a notification here
         }
       } catch (revenueError) {
         console.error("Error creating revenue automatically:", revenueError);
@@ -647,13 +662,13 @@ exports.createAvance = async (req, res) => {
     }
 
     // Optional: Only allow avance if status is confirmedWithClient or finished
-    if (reservation.status === "pending") {
+    /*  if (reservation.status === "pending") {
       return res.status(400).json({
         success: false,
         message: "Cannot add advance: Reservation is still pending",
       });
     }
-
+ */
     if (reservation.status === "canceled") {
       return res.status(400).json({
         success: false,
@@ -676,13 +691,62 @@ exports.createAvance = async (req, res) => {
     }
 
     // Add the new avance
+    const avanceDate = new Date();
     reservation.avances.push({
       montant: montant,
-      date: new Date(),
+      date: avanceDate,
     });
 
     // Save updated reservation
     const updatedReservation = await reservation.save();
+
+    // Create or update a Revenue entry for this advance
+    try {
+      // Try to find an existing advance revenue for this reservation
+      const existingAdvanceRevenue = await Revenue.findOne({
+        reservation: reservation._id,
+        status: "advance",
+      });
+      if (existingAdvanceRevenue) {
+        // Update the amount (add the new advance)
+        existingAdvanceRevenue.amount += montant;
+        existingAdvanceRevenue.paymentDate = avanceDate; // update to latest advance date
+        existingAdvanceRevenue.description = `Advance payment for reservation ${reservation._id}`;
+        await existingAdvanceRevenue.save();
+      } else {
+        // Create a new advance revenue
+        await Revenue.create({
+          worker: reservation.worker,
+          client: reservation.client || null,
+          reservation: reservation._id,
+          amount: montant,
+          status: "advance",
+          paymentDate: avanceDate,
+          description: `Advance payment for reservation ${reservation._id}`,
+          // SNAPSHOT FIELDS
+          clientName: reservation.clientName,
+          clientPhone: reservation.clientPhone,
+          title: reservation.title,
+          taskDescription: reservation.taskDescription,
+          billingType: reservation.billingType,
+          hours: reservation.hours,
+          hourlyRate: reservation.hourlyRate,
+          fixedPrice: reservation.fixedPrice,
+          totalPrice: reservation.totalPrice,
+          reservationStatus: reservation.status,
+          scheduledDate: reservation.scheduledDate,
+          scheduledTime: reservation.scheduledTime,
+          completedAt:
+            reservation.status === "finished" ? new Date() : undefined,
+        });
+      }
+    } catch (revenueError) {
+      console.error(
+        "Error creating/updating Revenue for advance:",
+        revenueError
+      );
+      // Optionally: return error or just log
+    }
 
     res.status(200).json({
       success: true,

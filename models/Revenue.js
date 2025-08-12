@@ -12,48 +12,32 @@ const revenueSchema = new mongoose.Schema(
       ref: "User",
       required: false,
     },
-    workerName: { type: String, required: true, trim: true },
-    workerPhone: { type: String, required: true, trim: true },
-    clientName: { type: String, required: true, trim: true },
-    clientPhone: { type: String, required: true, trim: true },
-    clientAddress: { type: String, required: false, trim: false },
-    task: { type: String, required: true, trim: true },
-
-    // Billing Information
-    billingType: {
-      type: String,
-      enum: ["hourly", "fixed"],
-      required: true,
-    },
-
-    // Hourly billing details (only required if billingType is 'hourly')
-    hours: {
-      type: Number,
-      min: 0,
-      required: function () {
-        return this.billingType === "hourly";
-      },
-    },
-    hourlyRate: {
-      type: Number,
-      min: 0,
-      required: function () {
-        return this.billingType === "hourly";
-      },
-    },
-
-    // Fixed billing details (only required if billingType is 'fixed')
-    fixedPrice: {
-      type: Number,
-      min: 0,
-      required: function () {
-        return this.billingType === "fixed";
-      },
-    },
-
-    totalPrice: { type: Number, required: true, min: 0 },
-    completedAt: { type: Date, default: Date.now },
     reservation: { type: mongoose.Schema.Types.ObjectId, ref: "Reservation" },
+    // Payment details
+    amount: { type: Number, required: true, min: 0 }, // Amount paid (advance or full)
+    status: {
+      type: String,
+      enum: ["advance", "partial", "final", "completed"],
+      required: true,
+      default: "advance",
+    },
+    paymentDate: { type: Date, default: Date.now },
+    description: { type: String, trim: true },
+
+    // SNAPSHOT FIELDS from Reservation for robust invoice
+    clientName: { type: String, trim: true },
+    clientPhone: { type: String, trim: true },
+    title: { type: String, trim: true },
+    taskDescription: { type: String, trim: true },
+    billingType: { type: String, enum: ["hourly", "fixed"] },
+    hours: { type: Number, min: 0 },
+    hourlyRate: { type: Number, min: 0 },
+    fixedPrice: { type: Number, min: 0 },
+    totalPrice: { type: Number, min: 0 },
+    reservationStatus: { type: String, trim: true },
+    scheduledDate: { type: Date },
+    scheduledTime: { type: String },
+    completedAt: { type: Date },
   },
   { timestamps: true }
 );

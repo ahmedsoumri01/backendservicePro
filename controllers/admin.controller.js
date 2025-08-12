@@ -115,8 +115,8 @@ exports.deleteService = async (req, res) => {
   try {
     const { serviceId } = req.body;
     console.log({
-      body:  req.body,
-      serviceId: serviceId
+      body: req.body,
+      serviceId: serviceId,
     });
     // Find service and verify ownership
     const service = await Service.findById(serviceId);
@@ -125,7 +125,7 @@ exports.deleteService = async (req, res) => {
         success: false,
         message: "Service not found",
       });
-    } 
+    }
     // Delete the service from database
     await Service.findByIdAndDelete(serviceId);
 

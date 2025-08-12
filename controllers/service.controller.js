@@ -373,51 +373,141 @@ exports.getAllServices = async (req, res) => {
 exports.searchServices = async (req, res) => {
   try {
     const { query, category, minPrice, maxPrice } = req.query;
-
-    // Build filter object
-    const filter = { audience: "public" };
-
-    // Add text search if query provided
-    if (query) {
-      filter.$or = [
-        { title: { $regex: query, $options: "i" } },
-        { description: { $regex: query, $options: "i" } },
-      ];
-    }
-
-    // Add category filter if provided
-    if (category) {
-      filter.category = category;
-    }
-
-    // Add price range filter if provided
-    if (minPrice || maxPrice) {
-      filter.price = {};
-      if (minPrice) filter.price.$gte = Number(minPrice);
-      if (maxPrice) filter.price.$lte = Number(maxPrice);
-    }
-
-    // Pagination
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Count total results
-    const total = await Service.countDocuments(filter);
+    // Build aggregation pipeline
+    const pipeline = [];
+    // Only public services
+    pipeline.push({ $match: { audience: "public" } });
 
-    // Execute search with pagination
-    const services = await Service.find(filter)
-      .populate({
-        path: "worker",
-        select: "specialization experience availability",
-        populate: {
-          path: "user",
-          select: "firstName lastName profileImage",
+    // Category filter
+    if (category) {
+      pipeline.push({ $match: { category } });
+    }
+
+    // Price filter
+    if (minPrice || maxPrice) {
+      const priceFilter = {};
+      if (minPrice) priceFilter.$gte = Number(minPrice);
+      if (maxPrice) priceFilter.$lte = Number(maxPrice);
+      pipeline.push({ $match: { price: priceFilter } });
+    }
+
+    // Join with Worker and User
+    pipeline.push(
+      {
+        $lookup: {
+          from: "workers",
+          localField: "worker",
+          foreignField: "_id",
+          as: "workerObj",
         },
-      })
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+      },
+      { $unwind: "$workerObj" },
+      {
+        $lookup: {
+          from: "users",
+          localField: "workerObj.user",
+          foreignField: "_id",
+          as: "userObj",
+        },
+      },
+      { $unwind: "$userObj" }
+    );
+
+    // Elastic search by query (title, description, worker name, case-insensitive, substring, ignore diacritics)
+    if (query) {
+      // Remove diacritics for more elastic search
+      const removeDiacritics = (str) =>
+        str.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+      const safeQuery = removeDiacritics(query);
+      const regex = new RegExp(safeQuery, "i");
+      pipeline.push({
+        $addFields: {
+          titleNoDiacritics: {
+            $replaceAll: {
+              input: { $toLower: { $ifNull: ["$title", ""] } },
+              find: "é",
+              replacement: "e",
+            },
+          },
+          descriptionNoDiacritics: {
+            $replaceAll: {
+              input: { $toLower: { $ifNull: ["$description", ""] } },
+              find: "é",
+              replacement: "e",
+            },
+          },
+          firstNameNoDiacritics: {
+            $replaceAll: {
+              input: { $toLower: { $ifNull: ["$userObj.firstName", ""] } },
+              find: "é",
+              replacement: "e",
+            },
+          },
+          lastNameNoDiacritics: {
+            $replaceAll: {
+              input: { $toLower: { $ifNull: ["$userObj.lastName", ""] } },
+              find: "é",
+              replacement: "e",
+            },
+          },
+        },
+      });
+      pipeline.push({
+        $match: {
+          $or: [
+            { titleNoDiacritics: { $regex: regex } },
+            { descriptionNoDiacritics: { $regex: regex } },
+            { firstNameNoDiacritics: { $regex: regex } },
+            { lastNameNoDiacritics: { $regex: regex } },
+          ],
+        },
+      });
+    }
+
+    // Count total results
+    const countPipeline = [...pipeline, { $count: "total" }];
+    const countResult = await Service.aggregate(countPipeline);
+    const total = countResult[0]?.total || 0;
+
+    // Pagination and sorting
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: limit });
+
+    // Project fields and re-populate worker/user for response
+    pipeline.push({
+      $project: {
+        _id: 1,
+        title: 1,
+        description: 1,
+        price: 1,
+        category: 1,
+        images: 1,
+        videos: 1,
+        audience: 1,
+        location: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        worker: {
+          _id: "$workerObj._id",
+          specialization: "$workerObj.specialization",
+          experience: "$workerObj.experience",
+          availability: "$workerObj.availability",
+          user: {
+            _id: "$userObj._id",
+            firstName: "$userObj.firstName",
+            lastName: "$userObj.lastName",
+            profileImage: "$userObj.profileImage",
+          },
+        },
+      },
+    });
+
+    const services = await Service.aggregate(pipeline);
 
     res.status(200).json({
       success: true,

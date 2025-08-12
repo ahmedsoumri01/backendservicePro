@@ -1,7 +1,7 @@
-const Review = require('../models/Review');
-const Service = require('../models/Service');
-const Worker = require('../models/Worker');
-const mongoose = require('mongoose');
+const Review = require("../models/Review");
+const Service = require("../models/Service");
+const Worker = require("../models/Worker");
+const mongoose = require("mongoose");
 
 /**
  * Create a new review for a service
@@ -16,7 +16,7 @@ exports.createReview = async (req, res) => {
     if (!serviceId || !rating) {
       return res.status(400).json({
         success: false,
-        message: 'Service ID and rating are required',
+        message: "Service ID and rating are required",
       });
     }
 
@@ -24,7 +24,7 @@ exports.createReview = async (req, res) => {
     if (rating < 1 || rating > 5) {
       return res.status(400).json({
         success: false,
-        message: 'Rating must be between 1 and 5',
+        message: "Rating must be between 1 and 5",
       });
     }
 
@@ -33,7 +33,7 @@ exports.createReview = async (req, res) => {
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found',
+        message: "Service not found",
       });
     }
 
@@ -42,7 +42,7 @@ exports.createReview = async (req, res) => {
     if (!worker) {
       return res.status(404).json({
         success: false,
-        message: 'Worker not found',
+        message: "Worker not found",
       });
     }
 
@@ -55,7 +55,7 @@ exports.createReview = async (req, res) => {
     if (existingReview) {
       return res.status(400).json({
         success: false,
-        message: 'You have already reviewed this service',
+        message: "You have already reviewed this service",
       });
     }
 
@@ -65,26 +65,26 @@ exports.createReview = async (req, res) => {
       worker: worker._id,
       service: serviceId,
       rating,
-      comment: comment || '',
+      comment: comment || "",
     });
 
     await review.save();
 
     // Return the new review with populated user data
     const populatedReview = await Review.findById(review._id)
-      .populate('user', 'firstName lastName profileImage')
-      .populate('service', 'title');
+      .populate("user", "firstName lastName profileImage")
+      .populate("service", "title");
 
     res.status(201).json({
       success: true,
-      message: 'Review created successfully',
+      message: "Review created successfully",
       data: populatedReview,
     });
   } catch (error) {
-    console.error('Error creating review:', error);
+    console.error("Error creating review:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create review',
+      message: "Failed to create review",
       error: error.message,
     });
   }
@@ -104,13 +104,13 @@ exports.getServiceReviews = async (req, res) => {
     if (!service) {
       return res.status(404).json({
         success: false,
-        message: 'Service not found',
+        message: "Service not found",
       });
     }
 
     // Get all reviews for this service
     const reviews = await Review.find({ service: serviceId })
-      .populate('user', 'firstName lastName profileImage')
+      .populate("user", "firstName lastName profileImage")
       .sort({ createdAt: -1 });
 
     // Calculate average rating
@@ -124,10 +124,10 @@ exports.getServiceReviews = async (req, res) => {
       data: reviews,
     });
   } catch (error) {
-    console.error('Error fetching service reviews:', error);
+    console.error("Error fetching service reviews:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch reviews',
+      message: "Failed to fetch reviews",
       error: error.message,
     });
   }
@@ -147,14 +147,14 @@ exports.getWorkerReviews = async (req, res) => {
     if (!worker) {
       return res.status(404).json({
         success: false,
-        message: 'Worker not found',
+        message: "Worker not found",
       });
     }
 
     // Get all reviews for this worker
     const reviews = await Review.find({ worker: workerId })
-      .populate('user', 'firstName lastName profileImage')
-      .populate('service', 'title')
+      .populate("user", "firstName lastName profileImage")
+      .populate("service", "title")
       .sort({ createdAt: -1 });
 
     // Calculate average rating
@@ -168,10 +168,10 @@ exports.getWorkerReviews = async (req, res) => {
       data: reviews,
     });
   } catch (error) {
-    console.error('Error fetching worker reviews:', error);
+    console.error("Error fetching worker reviews:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch reviews',
+      message: "Failed to fetch reviews",
       error: error.message,
     });
   }
@@ -186,13 +186,13 @@ exports.getMyReviews = async (req, res) => {
   try {
     // Get all reviews made by this user
     const reviews = await Review.find({ user: req.user.id })
-      .populate('service', 'title')
+      .populate("service", "title")
       .populate({
-        path: 'worker',
-        select: 'specialization',
+        path: "worker",
+        select: "specialization",
         populate: {
-          path: 'user',
-          select: 'firstName lastName profileImage',
+          path: "user",
+          select: "firstName lastName profileImage",
         },
       })
       .sort({ createdAt: -1 });
@@ -203,10 +203,10 @@ exports.getMyReviews = async (req, res) => {
       data: reviews,
     });
   } catch (error) {
-    console.error('Error fetching user reviews:', error);
+    console.error("Error fetching user reviews:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch reviews',
+      message: "Failed to fetch reviews",
       error: error.message,
     });
   }
@@ -227,7 +227,7 @@ exports.updateReview = async (req, res) => {
     if (!review) {
       return res.status(404).json({
         success: false,
-        message: 'Review not found',
+        message: "Review not found",
       });
     }
 
@@ -243,7 +243,7 @@ exports.updateReview = async (req, res) => {
     if (rating && (rating < 1 || rating > 5)) {
       return res.status(400).json({
         success: false,
-        message: 'Rating must be between 1 and 5',
+        message: "Rating must be between 1 and 5",
       });
     }
 
@@ -255,19 +255,19 @@ exports.updateReview = async (req, res) => {
 
     // Return updated review with populated data
     const updatedReview = await Review.findById(id)
-      .populate('user', 'firstName lastName profileImage')
-      .populate('service', 'title');
+      .populate("user", "firstName lastName profileImage")
+      .populate("service", "title");
 
     res.status(200).json({
       success: true,
-      message: 'Review updated successfully',
+      message: "Review updated successfully",
       data: updatedReview,
     });
   } catch (error) {
-    console.error('Error updating review:', error);
+    console.error("Error updating review:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update review',
+      message: "Failed to update review",
       error: error.message,
     });
   }
@@ -287,12 +287,12 @@ exports.deleteReview = async (req, res) => {
     if (!review) {
       return res.status(404).json({
         success: false,
-        message: 'Review not found',
+        message: "Review not found",
       });
     }
 
     // Check if user owns this review or is an admin
-    if (review.user.toString() !== req.user.id && req.user.role !== 'admin') {
+    if (review.user.toString() !== req.user.id && req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
         message: "You don't have permission to delete this review",
@@ -304,13 +304,13 @@ exports.deleteReview = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Review deleted successfully',
+      message: "Review deleted successfully",
     });
   } catch (error) {
-    console.error('Error deleting review:', error);
+    console.error("Error deleting review:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete review',
+      message: "Failed to delete review",
       error: error.message,
     });
   }
@@ -324,62 +324,67 @@ exports.deleteReview = async (req, res) => {
 exports.getRandomReviews = async (req, res) => {
   try {
     const count = parseInt(req.query.count) || 5;
-    
+
     // Get random reviews with rating >= 4 for better homepage display
     const reviews = await Review.aggregate([
       { $match: { rating: { $gte: 4 } } },
       { $sample: { size: count } },
-      { $lookup: {
-          from: 'users',
-          localField: 'user',
-          foreignField: '_id',
-          as: 'user'
-        }
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
       },
-      { $unwind: '$user' },
-      { $lookup: {
-          from: 'services',
-          localField: 'service',
-          foreignField: '_id',
-          as: 'service'
-        }
+      { $unwind: "$user" },
+      {
+        $lookup: {
+          from: "services",
+          localField: "service",
+          foreignField: "_id",
+          as: "service",
+        },
       },
-      { $unwind: '$service' },
-      { $lookup: {
-          from: 'workers',
-          localField: 'worker',
-          foreignField: '_id',
-          as: 'worker'
-        }
+      { $unwind: "$service" },
+      {
+        $lookup: {
+          from: "workers",
+          localField: "worker",
+          foreignField: "_id",
+          as: "worker",
+        },
       },
-      { $unwind: '$worker' },
-      { $lookup: {
-          from: 'users',
-          localField: 'worker.user',
-          foreignField: '_id',
-          as: 'workerUser'
-        }
+      { $unwind: "$worker" },
+      {
+        $lookup: {
+          from: "users",
+          localField: "worker.user",
+          foreignField: "_id",
+          as: "workerUser",
+        },
       },
-      { $unwind: '$workerUser' },
-      { $project: {
+      { $unwind: "$workerUser" },
+      {
+        $project: {
           _id: 1,
           rating: 1,
           comment: 1,
           createdAt: 1,
-          'user._id': 1,
-          'user.firstName': 1,
-          'user.lastName': 1,
-          'user.profileImage': 1,
-          'service._id': 1,
-          'service.title': 1,
-          'worker._id': 1,
-          'worker.specialization': 1,
-          'workerUser._id': 1,
-          'workerUser.firstName': 1,
-          'workerUser.lastName': 1,
-          'workerUser.profileImage': 1
-        }
-      }
+          "user._id": 1,
+          "user.firstName": 1,
+          "user.lastName": 1,
+          "user.profileImage": 1,
+          "service._id": 1,
+          "service.title": 1,
+          "worker._id": 1,
+          "worker.specialization": 1,
+          "workerUser._id": 1,
+          "workerUser.firstName": 1,
+          "workerUser.lastName": 1,
+          "workerUser.profileImage": 1,
+        },
+      },
     ]);
 
     res.status(200).json({
@@ -388,10 +393,10 @@ exports.getRandomReviews = async (req, res) => {
       data: reviews,
     });
   } catch (error) {
-    console.error('Error fetching random reviews:', error);
+    console.error("Error fetching random reviews:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch random reviews',
+      message: "Failed to fetch random reviews",
       error: error.message,
     });
   }
@@ -405,10 +410,10 @@ exports.getRandomReviews = async (req, res) => {
 exports.getAllReviews = async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== "admin") {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin only.',
+        message: "Access denied. Admin only.",
       });
     }
 
@@ -422,14 +427,14 @@ exports.getAllReviews = async (req, res) => {
 
     // Get reviews with pagination
     const reviews = await Review.find()
-      .populate('user', 'firstName lastName email profileImage')
-      .populate('service', 'title')
+      .populate("user", "firstName lastName email profileImage")
+      .populate("service", "title")
       .populate({
-        path: 'worker',
-        select: 'specialization',
+        path: "worker",
+        select: "specialization",
         populate: {
-          path: 'user',
-          select: 'firstName lastName',
+          path: "user",
+          select: "firstName lastName",
         },
       })
       .sort({ createdAt: -1 })
@@ -444,10 +449,10 @@ exports.getAllReviews = async (req, res) => {
       data: reviews,
     });
   } catch (error) {
-    console.error('Error fetching all reviews:', error);
+    console.error("Error fetching all reviews:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch reviews',
+      message: "Failed to fetch reviews",
       error: error.message,
     });
   }

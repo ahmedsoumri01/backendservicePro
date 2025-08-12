@@ -1,5 +1,4 @@
 const nodemailer = require("nodemailer");
- 
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -11,11 +10,10 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendResetPasswordMail = async (email, token) => {
-
   console.log({
     email,
-    token
-  })
+    token,
+  });
   const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
 
   const mailOptions = {
@@ -54,7 +52,7 @@ exports.sendResetPasswordMail = async (email, token) => {
   } catch (error) {
     console.error("Erreur lors de l'envoi de l'e-mail:", error);
   }
-}; 
+};
 // Function to send email to admin
 exports.sendEmailToAdmin = async (name, email, phone, subject, message) => {
   const mailOptions = {
@@ -88,7 +86,6 @@ exports.sendEmailToAdmin = async (name, email, phone, subject, message) => {
       </html>
     `,
   };
-
 
   try {
     await transporter.sendMail(mailOptions);

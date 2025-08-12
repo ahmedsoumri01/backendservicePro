@@ -6,7 +6,7 @@ const {
   changeReportStatus,
   getMyReports,
   createReport,
-  deleteReport
+  deleteReport,
 } = require("../controllers/report.controller");
 
 // Get all reports (admin only)

@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const Worker = require('../models/Worker');
+const Worker = require("../models/Worker");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
@@ -7,7 +7,8 @@ require("dotenv").config();
 
 // 🔹 Register User
 exports.register = async (req, res) => {
-  const { firstName, lastName, email, password, phone, role,adress } = req.body;
+  const { firstName, lastName, email, password, phone, role, adress } =
+    req.body;
   try {
     let user = await User.findOne({ email });
     if (user) {
@@ -127,24 +128,24 @@ exports.protectedRoute = async (req, res) => {
 exports.getLoggedUser = async (req, res) => {
   try {
     let query = User.findById(req.user.id);
-    
+
     // Check if the user is a worker, if so, populate worker data
     const user = await query.lean();
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
-    
+
     // If the user has a worker role, get and include their worker data
     if (user.role === "worker") {
       const workerData = await Worker.findOne({ user: user._id }).lean();
-      
+
       if (workerData) {
         // Combine user and worker data
         user.workerDetails = workerData;
       }
     }
-   
+
     res.json({ data: { user } });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
