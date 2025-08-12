@@ -10,6 +10,10 @@ const createUploadDirectories = () => {
     "./uploads/services",
     "./uploads/services/images",
     "./uploads/services/videos",
+    "./uploads/chat",
+    "./uploads/chat/images",
+    "./uploads/chat/pdfs",
+    "./uploads/chat/others",
   ];
   dirs.forEach((dir) => {
     if (!fs.existsSync(dir)) {
