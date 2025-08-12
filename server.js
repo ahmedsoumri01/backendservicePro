@@ -18,6 +18,9 @@ const conversationRoutes = require("./routes/conversation.routes"); // New route
 const messageRoutes = require("./routes/message.routes"); // New route
 const path = require("path");
 
+// Logger middleware
+const { logRequest, logError } = require("./logger");
+
 // Load environment variables from .env file
 dotenv.config();
 
@@ -48,6 +51,9 @@ app.use(
   })
 );
 
+// Log every request
+app.use(logRequest);
+
 // Serve static files (profile images)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 createAdminAccount();
@@ -67,6 +73,9 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/conversations", conversationRoutes); // New route
 app.use("/api/messages", messageRoutes); // New route
 app.use("/api/kpi", kpiRoutes); // New route
+
+// Error logging middleware (should be after all routes)
+app.use(logError);
 
 // Define a simple route for testing
 app.get("/", (req, res) => {
