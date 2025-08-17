@@ -538,7 +538,7 @@ exports.getServiceById = async (req, res) => {
     // Find service with detailed worker info
     const service = await Service.findById(id).populate({
       path: "worker",
-      select: "specialization experience availability skills",
+      select: "specialization experience availability skills socialMedia",
       populate: {
         path: "user",
         select: "firstName lastName profileImage email phone adress",

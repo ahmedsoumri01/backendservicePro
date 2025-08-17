@@ -39,6 +39,11 @@ const WorkerSchema = new mongoose.Schema(
       lastUsed: Date,
       expirationDate: Date,
     },
+    socialMedia: {
+      facebookLink: { type: String, trim: true, default: "" },
+      linkedinLink: { type: String, trim: true, default: "" },
+      instagramLink: { type: String, trim: true, default: "" },
+    },
   },
   { timestamps: true }
 );

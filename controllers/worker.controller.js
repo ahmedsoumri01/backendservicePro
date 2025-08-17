@@ -16,6 +16,10 @@ exports.completeWorkerProfile = async (req, res) => {
     }
     // Get form data
     const { experience, specialization, availability } = req.body;
+    // Get social media links
+    const facebookLink = req.body.facebookLink || "";
+    const linkedinLink = req.body.linkedinLink || "";
+    const instagramLink = req.body.instagramLink || "";
     // Find or create worker profile
     let worker = await Worker.findOne({ user: req.user._id });
     if (!worker) {
@@ -25,6 +29,11 @@ exports.completeWorkerProfile = async (req, res) => {
         experience: Number(experience),
         specialization,
         availability: availability === "true" || availability === true,
+        socialMedia: {
+          facebookLink,
+          linkedinLink,
+          instagramLink,
+        },
       });
     } else {
       // Update existing worker
@@ -37,6 +46,11 @@ exports.completeWorkerProfile = async (req, res) => {
         (availability !== "false" &&
           availability !== false &&
           worker.availability);
+      worker.socialMedia = {
+        facebookLink: facebookLink || worker.socialMedia?.facebookLink || "",
+        linkedinLink: linkedinLink || worker.socialMedia?.linkedinLink || "",
+        instagramLink: instagramLink || worker.socialMedia?.instagramLink || "",
+      };
     }
     // If there's an uploaded profile image, update the user record
     if (req.file) {
